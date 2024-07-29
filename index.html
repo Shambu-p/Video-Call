@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="./index.css" rel="stylesheet" >
 </head>
-<body style="width: 100vw; height: 100vh; margin: 0; padding: 0; position: absolute; overflow: hidden auto;">
+<body class="bg-light" style="width: 100vw; height: 100vh; margin: 0; padding: 0; position: absolute; overflow: hidden auto;">
 
     <video
         id="main_video"
@@ -14,10 +15,40 @@
         muted
         style="background: black; width: 100%; height: 400px; margin: 0; position: relative;"
     ></video>
-    <button id="mute_button">Unmute</button>
-    <button id="camera_button">Off</button>
-    <button id="call_button">Call</button>
-    <button id="end_call_button" style="display: none;">End Call</button>
+    <div class="d-flex py-2 justify-content-center border-bottom">
+        <button id="mute_button" class="btn btn-sm btn-primary me-1">Unmute</button>
+        <button id="camera_button" class="btn btn-sm btn-danger me-1">Off</button>
+        <button id="call_button" class="btn btn-sm btn-success me-1">Call</button>
+        <button id="end_call_button" class="btn btn-sm btn-danger me-1" style="display: none;">End Call</button>
+    </div>
+    <div class="d-flex justify-content-center py-3">
+        <div class="col-sm-12 col-md-8 col-lg-4 px-3 d-flex" id="join_form">
+            <input type="text" class="form-control form-control-lg" placeholder="Insert Call Id here" id="call_id_input">
+            <button class="btn btn-lg btn-primary ms-3" id="join_button">Join</button>
+        </div>
+        <div class="col-sm-12 col-md-8 col-lg-4 px-3 d-flex" id="call_info_display">
+            <span class="card-title me-3">Call Id: </span>
+            <strong>
+                <h5 class="card-title" id="call_id_display">lsdfj</h5>
+            </strong>
+        </div>
+    </div>
+    <div class="row p-3" id="participant_grid">
+        <!-- <div class="col-sm-12 col-md-6 col-lg-4 p-3 rounded-2 mb-2 bg-dark">
+            <video src="" class="participant_video"></video>
+            <div class="w-100 bg-dark d-flex justify-content-between py-2">
+                <h5 class="card-title text-white">Senay Kebede</h5>
+                <button class="btn btn-sm btn-light">Focus</button>
+            </div>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-4 p-3 rounded-2 mb-2 bg-dark">
+            <video src="" class="participant_video"></video>
+            <div class="w-100 bg-dark d-flex justify-content-between py-2">
+                <h5 class="card-title text-white">Senay Kebede</h5>
+                <button class="btn btn-sm btn-light">Focus</button>
+            </div>
+        </div> -->
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>

@@ -4,14 +4,16 @@ let mediaStream;
 let cameraState = true;
 let buttons = {};
 let socket;
-let participants = [];
+let participants = new Map();
 let currentCall;
+let call_info_display, call_id_display, call_id_input;
 
 const ActionTypes = {
     NewCallParticipant: "new_participant",
     NewICECandidate: "new_ice_candidate",
     LeaveCall: "leave_call",
-    StartCall: "start_call"
+    StartCall: "start_call",
+    ParticipantsInfo: "participants_info"
 };
 
 window.onload = async () => {
@@ -23,7 +25,88 @@ window.onload = async () => {
         currentCall = data;
         buttons.call.style.display = "none";
         buttons.end_call.style.display = "";
+        changeJoinFormState(false);
     });
+
+    socket.setHandler(ActionTypes.NewICECandidate, (data) => {
+
+        let found_participant = participants.get(data.user_id);
+        if(found_participant){
+            found_participant.peerConnection.addIceCandidate(data.iceCandidate);
+        }
+
+    });
+
+    socket.setHandler(ActionTypes.NewCallParticipant, async (data) => {
+
+        let creation_result = await createPeerConnection(data.user_id, data.offer);
+        let answer = await creation_result.peerConnection.createAnswer({});
+        await creation_result.peerConnection.setLocalDescription(answer);
+
+        let new_participant = {
+            name: "unknown user",
+            video: false,
+            audio: false,
+            presenting: false,
+            creator: false,
+            ...creation_result
+        };
+
+        participants.set(data.user_id, new_participant);
+
+        createNewParticipant(data.user_id);
+
+        let participant_video = document.getElementById(data.user_id);
+        participant_video.srcObject = participants.get(data.user_id).remoteStream;
+
+    });
+
+    socket.setHandler("call_info", async (data) => {
+
+        currentCall = data;
+        let participant_ids = Array.from(data.participants.keys());
+        buttons.call.style.display = "none";
+        buttons.end_call.style.display = "";
+        changeJoinFormState(false);
+
+        let offers = [];
+        let creation_result = await createPeerConnection(data.user_id, data.offer);
+        let answer = await creation_result.peerConnection.createAnswer({});
+        await creation_result.peerConnection.setLocalDescription(answer);
+
+        for(let i = 0; i < participant_ids.length; i ++) {
+
+            let new_participant = await prepareParticipantConnection(participant_ids[i]);
+            offers.push({
+                user_id: participant_ids[i],
+                offer: new_participant.answer
+            });
+
+            participants.set(data.user_id, new_participant.pr);
+            createNewParticipant(data.user_id);
+
+            setTimeout(() => {
+                setRemoteStreams(participant_ids);
+            }, 1000);
+        }
+
+        socket.emit(ActionTypes.NewCallParticipant, {
+            offers,
+            callId
+        });
+
+    });
+
+    socket.setHandler(ActionTypes.LeaveCall, (data) => {
+        currentCall = data;
+        buttons.call.style.display = "none";
+        buttons.end_call.style.display = "";
+        changeJoinFormState(false);
+    });
+
+    call_info_display = document.getElementById("call_info_display");
+    call_id_display = document.getElementById("call_id_display");
+    call_id_input = document.getElementById("call_id_input");
 
     main_video = document.getElementById("main_video");
     main_video.addEventListener("loadedmetadata", () => {
@@ -45,14 +128,40 @@ window.onload = async () => {
         cameraState = !cameraState;
         // alert("clicked");
     });
-    
-    buttons.call = document.getElementById("call_button");
-    buttons.end_call = document.getElementById("end_call_button");
 
+    buttons.call = document.getElementById("call_button");
     buttons.call.addEventListener("click", () => {
         socket.emit("create_call", {});
         // alert("working");
     });
+
+    buttons.join_button = document.getElementById("join_button");
+    buttons.join_button.addEventListener("click", async () => {
+
+        let creation_result = await createPeerConnection(data.user_id, data.offer);
+        let answer = await creation_result.peerConnection.createAnswer({});
+        await creation_result.peerConnection.setLocalDescription(answer);
+
+        let new_participant = {
+            name: "unknown user",
+            video: false,
+            audio: false,
+            presenting: false,
+            creator: false,
+            ...creation_result
+        };
+
+        participants.set(data.user_id, new_participant);
+
+        createNewParticipant(data.user_id);
+
+        let participant_video = document.getElementById(data.user_id);
+        participant_video.srcObject = participants.get(data.user_id).remoteStream;
+        socket.emit(ActionTypes.NewCallParticipant, {});
+        // alert("working");
+    });
+
+    buttons.end_call = document.getElementById("end_call_button");
 
 
     // await getMedia();
@@ -73,12 +182,12 @@ async function getMedia() {
     }
 }
 
-const createPeerConnection = async (offerObj) => {
+const createPeerConnection = async (user_id, offerObj) => {
     //RTCPeerConnection is the thing that creates the connection
     //we can pass a config object, and that config object can contain stun servers
     //which will fetch us ICE candidates
     let peerConnection = new RTCPeerConnection(peerConfiguration)
-    // remoteStream = new MediaStream()
+    let remoteStream = new MediaStream()
     // remoteVideoEl.srcObject = remoteStream;
 
 
@@ -88,27 +197,31 @@ const createPeerConnection = async (offerObj) => {
     })
 
     peerConnection.addEventListener("signalingstatechange", (event) => {
-        console.log(event);
-        console.log(peerConnection.signalingState)
+        // console.log(event);
+        // console.log(peerConnection.signalingState)
     });
 
     peerConnection.addEventListener('icecandidate',e=>{
         console.log('........Ice candidate found!......')
-        console.log(e)
+        // console.log(e)
         if(e.candidate){
             socket.emit(ActionTypes.NewICECandidate, {
                 iceCandidate: e.candidate,
-                callId: currentCall.sys_id
+                callId: currentCall.sys_id,
+                user_id
             });
         }
     })
     
     peerConnection.addEventListener('track',e=>{
         console.log("Got a track from the other peer!! How excting")
-        console.log(e)
+        // console.log(e)
         e.streams[0].getTracks().forEach(track=>{
-            remoteStream.addTrack(track,remoteStream);
-            console.log("Here's an exciting moment... fingers cross")
+            let found_participant = participants.get(user_id);
+            if(found_participant) {
+                found_participant.remoteStream.addTrack(track,found_participant.remoteStream);
+            }
+            // console.log("Here's an exciting moment... fingers cross")
         })
     })
 
@@ -120,5 +233,43 @@ const createPeerConnection = async (offerObj) => {
         // console.log(peerConnection.signalingState) //should be have-remote-offer, because client2 has setRemoteDesc on the offer
     }
 
-    return peerConnection;
+    return {peerConnection, remoteStream};
+}
+
+function changeJoinFormState(state) {
+    let element = document.getElementById("join_form");
+    if(element) {
+        element.style.display = state ? "" : "none";
+    }
+}
+
+async function prepareParticipantConnection(user_id) {
+
+    let creation_result = await createPeerConnection(user_id);
+    let answer = await creation_result.peerConnection.createOffer({});
+    await creation_result.peerConnection.setLocalDescription(answer);
+
+    return {
+        answer,
+        pr: {
+            name: "unknown user",
+            video: false,
+            audio: false,
+            presenting: false,
+            creator: false,
+            ...creation_result
+        }
+    };
+
+}
+
+function setRemoteStreams(ids) {
+
+    ids.forEach(id => {
+        let participant_video = document.getElementById(id);
+        if(participant_video) {
+            participant_video.srcObject = participants.get(id).remoteStream;
+        }
+    })
+
 }
