@@ -7,6 +7,16 @@ let socket;
 let participants = new Map();
 let currentCall;
 let call_info_display, call_id_display, call_id_input;
+let peerConfiguration = {
+    iceServers:[
+        {
+            urls:[
+              'stun:stun.l.google.com:19302',
+              'stun:stun1.l.google.com:19302'
+            ]
+        }
+    ]
+}
 
 const ActionTypes = {
     NewCallParticipant: "new_participant",
@@ -26,6 +36,8 @@ window.onload = async () => {
         buttons.call.style.display = "none";
         buttons.end_call.style.display = "";
         changeJoinFormState(false);
+        call_id_display.innerHTML = data.sys_id;
+        socket.emit(ActionTypes.StartCall, {callId: data.sys_id});
     });
 
     socket.setHandler(ActionTypes.NewICECandidate, (data) => {
@@ -64,7 +76,7 @@ window.onload = async () => {
     socket.setHandler("call_info", async (data) => {
 
         currentCall = data;
-        let participant_ids = Array.from(data.participants.keys());
+        let participant_ids = data.participants.map(prt => prt.sys_id);
         buttons.call.style.display = "none";
         buttons.end_call.style.display = "";
         changeJoinFormState(false);
@@ -82,8 +94,8 @@ window.onload = async () => {
                 offer: new_participant.answer
             });
 
-            participants.set(data.user_id, new_participant.pr);
-            createNewParticipant(data.user_id);
+            participants.set(participant_ids[i], new_participant.pr);
+            createNewParticipant(participant_ids[i]);
 
             setTimeout(() => {
                 setRemoteStreams(participant_ids);
@@ -138,34 +150,37 @@ window.onload = async () => {
     buttons.join_button = document.getElementById("join_button");
     buttons.join_button.addEventListener("click", async () => {
 
-        let creation_result = await createPeerConnection(data.user_id, data.offer);
-        let answer = await creation_result.peerConnection.createAnswer({});
-        await creation_result.peerConnection.setLocalDescription(answer);
+        // let creation_result = await createPeerConnection(data.user_id);
+        // let answer = await creation_result.peerConnection.createAnswer({});
+        // await creation_result.peerConnection.setLocalDescription(answer);
 
-        let new_participant = {
-            name: "unknown user",
-            video: false,
-            audio: false,
-            presenting: false,
-            creator: false,
-            ...creation_result
-        };
+        // let new_participant = {
+        //     name: "unknown user",
+        //     video: false,
+        //     audio: false,
+        //     presenting: false,
+        //     creator: false,
+        //     ...creation_result
+        // };
 
-        participants.set(data.user_id, new_participant);
+        // participants.set(data.user_id, new_participant);
 
-        createNewParticipant(data.user_id);
+        // createNewParticipant(data.user_id);
 
-        let participant_video = document.getElementById(data.user_id);
-        participant_video.srcObject = participants.get(data.user_id).remoteStream;
-        socket.emit(ActionTypes.NewCallParticipant, {});
+        // let participant_video = document.getElementById(data.user_id);
+        // participant_video.srcObject = participants.get(data.user_id).remoteStream;
+        // socket.emit(ActionTypes.NewCallParticipant, {});
         // alert("working");
+
+
+        socket.emit("call_info", {call_id: call_id_input.value});
     });
 
     buttons.end_call = document.getElementById("end_call_button");
 
 
-    // await getMedia();
-    // main_video.srcObject = mediaStream;
+    await getMedia();
+    main_video.srcObject = mediaStream;
     // console.log("video tracks", mediaStream.getVideoTracks());
 
 };
@@ -174,8 +189,10 @@ async function getMedia() {
     try {
         mediaStream = await window.navigator.mediaDevices.getUserMedia({
             video: true,
-            audio: true
+            // audio: true
         });
+
+        // console.log("found media stream", mediaStream.getTracks());
         
     } catch(error){
         console.log(error.message);
