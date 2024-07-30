@@ -82,9 +82,9 @@ window.onload = async () => {
         changeJoinFormState(false);
 
         let offers = [];
-        let creation_result = await createPeerConnection(data.user_id, data.offer);
-        let answer = await creation_result.peerConnection.createAnswer({});
-        await creation_result.peerConnection.setLocalDescription(answer);
+        // let creation_result = await createPeerConnection(data.user_id, data.offer);
+        // let answer = await creation_result.peerConnection.createAnswer({});
+        // await creation_result.peerConnection.setLocalDescription(answer);
 
         for(let i = 0; i < participant_ids.length; i ++) {
 
@@ -100,11 +100,12 @@ window.onload = async () => {
             setTimeout(() => {
                 setRemoteStreams(participant_ids);
             }, 1000);
+
         }
 
         socket.emit(ActionTypes.NewCallParticipant, {
             offers,
-            callId
+            callId: currentCall.sys_id
         });
 
     });
@@ -288,5 +289,20 @@ function setRemoteStreams(ids) {
             participant_video.srcObject = participants.get(id).remoteStream;
         }
     })
+
+}
+
+function createNewParticipant(user_id) {
+
+    let element = document.getElementById("participant_grid");
+    element.innerHTML += `
+    <div class="col-sm-12 col-md-6 col-lg-4 p-3 rounded-2 mb-2 bg-dark" id="${user_id}_container">
+        <video src="" class="participant_video" id="${user_id}"></video>
+        <div class="w-100 bg-dark d-flex justify-content-between py-2">
+            <h5 class="card-title text-white">${user_id}</h5>
+            <button class="btn btn-sm btn-light">Focus</button>
+        </div>
+    </div>
+    `;
 
 }
