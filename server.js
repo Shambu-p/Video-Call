@@ -16,5 +16,6 @@ const cert = fs.readFileSync('cert.crt');
 const expressServer = https.createServer({key, cert}, app);
 //create our socket.io server... it will listen to our express port
 
+// app.listen(8181);
 expressServer.listen(8181);
 console.log("server is running on 8181");

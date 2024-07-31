@@ -17,19 +17,23 @@ let peerConfiguration = {
         }
     ]
 }
+// let serverAddress = "ws://localhost:7000";
+let serverAddress = "wss://192.168.100.119:7000";
+// let serverAddress = "https://192.168.100.119:7000";
 
 const ActionTypes = {
     NewCallParticipant: "new_participant",
     NewICECandidate: "new_ice_candidate",
     LeaveCall: "leave_call",
     StartCall: "start_call",
+    ParticipantAnswer: "join_answer",
     ParticipantsInfo: "participants_info"
 };
 
 window.onload = async () => {
 
     socket = new ZewdSocket();
-    socket.connect("ws://localhost:7000");
+    socket.connect(serverAddress);
     
     socket.setHandler("create_call", (data) => {
         currentCall = data;
@@ -64,14 +68,28 @@ window.onload = async () => {
             ...creation_result
         };
 
+        // data.offer.answer = answer;
+
         participants.set(data.user_id, new_participant);
 
         createNewParticipant(data.user_id);
 
-        let participant_video = document.getElementById(data.user_id);
-        participant_video.srcObject = participants.get(data.user_id).remoteStream;
+        setTimeout(() => {
+            let participant_video = document.getElementById(data.user_id);
+            participant_video.srcObject = participants.get(data.user_id).remoteStream;
+        }, 100);
+
+        socket.emit(ActionTypes.ParticipantAnswer, {offer: answer, user_id: data.user_id, callId: currentCall.sys_id});
 
     });
+
+    socket.setHandler(ActionTypes.ParticipantAnswer, async (data) => {
+        console.log("join answer is received");
+        let found_participant = participants.get(data.user_id);
+        if(found_participant) {
+            found_participant.peerConnection.setRemoteDescription(data.offer);
+        }
+    })
 
     socket.setHandler("call_info", async (data) => {
 
@@ -247,7 +265,7 @@ const createPeerConnection = async (user_id, offerObj) => {
         //this won't be set when called from call();
         //will be set when we call from answerOffer()
         // console.log(peerConnection.signalingState) //should be stable because no setDesc has been run yet
-        await peerConnection.setRemoteDescription(offerObj.offer)
+        await peerConnection.setRemoteDescription(offerObj)
         // console.log(peerConnection.signalingState) //should be have-remote-offer, because client2 has setRemoteDesc on the offer
     }
 
@@ -297,7 +315,7 @@ function createNewParticipant(user_id) {
     let element = document.getElementById("participant_grid");
     element.innerHTML += `
     <div class="col-sm-12 col-md-6 col-lg-4 p-3 rounded-2 mb-2 bg-dark" id="${user_id}_container">
-        <video src="" class="participant_video" id="${user_id}"></video>
+        <video src="" class="participant_video" id="${user_id}" controls></video>
         <div class="w-100 bg-dark d-flex justify-content-between py-2">
             <h5 class="card-title text-white">${user_id}</h5>
             <button class="btn btn-sm btn-light">Focus</button>
